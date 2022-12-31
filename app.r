@@ -9,19 +9,24 @@
 
 library(shiny)
 covidData <- read.csv("./RKI_COVID19_Berlin.csv")
-bezirk <- covidData$Landkreis
+
 fall <- covidData$AnzahlFall != "0"
 todesfall <- covidData$AnzahlTodesfall != "0"
-BezirkTode <- table(bezirk[todesfall])
-bezirkNamen <- c("Charlottenburg-Wilmersdorf", "Friedrichshain-Kreuzberg", "Lichtenberg", "Marzahn-Hellersdorf", "Mitte", "Neukölln", "Pankow", "Reinickendorf", "Spandau",
-                 "Steglitz-Zelendorf", "Tempelhof-Schöneberg", "Treptow-Köpenick")
-geschlecht <- unique(covidData$Geschlecht)
-GeschlechtFaelle <- table(covidData$Geschlecht[fall])
-GeschlechtTode <- table(covidData$Geschlecht[todesfall])
 
-GeschlechtData <- rbind(GeschlechtFaelle[geschlecht], GeschlechtTode[geschlecht])
+datenfarben <- c(
+  "AnzahlGenesen" = "green",
+  "AnzahlFall" = "blue",
+  "AnzahlTodesfall" = "red"
+)
+datennamen <- c(
+  "AnzahlGenesen" = "Genesen",
+  "AnzahlFall" = "Fall",
+  "AnzahlTodesfall" = "Todesfall"
+)
 
-choices <- 
+bezirke <- unique(covidData$Landkreis)
+geschlechter <- unique(covidData$Geschlecht)
+altersgruppen <- unique(covidData$Altersgruppe)
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
@@ -30,15 +35,58 @@ ui <- fluidPage(
   sidebarLayout(
     # Panel on the left side of the plot
     sidebarPanel(
-      varSelectInput(
-        inputId = "plotType",
+      selectInput(
+        inputId = "typ",
         label = "Typ:",
         choices = c(
-          "Bezirke" = "Bezirke",
+          "Bezirke" = "Landkreis",
           "Geschlechter" = "Geschlecht",
-          "Todesfälle" = "Todesfälle"
+          "Altersgruppen" = "Altersgruppe"
+        ),
+        selected = "Bezirke"
+      ),
+      selectizeInput(
+        inputId = "fallTypen",
+        label = "Falltypen:",
+        choices = c(
+          "Fälle" = "AnzahlFall",
+          "Todesfälle" = "AnzahlTodesfall",
+          "Genesen" = "AnzahlGenesen"
+        ),
+        selected = c("AnzahlFall", "AnzahlTodesfall"),
+        multiple = TRUE,
+        options = list(plugins = list("remove_button"))
+      ),
+      # Wird angezeigt wenn "Bezirke" ausgewählt
+      conditionalPanel(
+        condition = "input.typ == 'Landkreis'",
+        checkboxGroupInput(
+          inputId = "bezirk",
+          label = "Bezirk",
+          choices = bezirke,
+          selected = bezirke
         )
       ),
+      # Wird angezeigt wenn "Geschlechter" ausgewählt
+      conditionalPanel(
+        condition = "input.typ == 'Geschlecht'",
+        checkboxGroupInput(
+          inputId = "geschlecht",
+          label = "Geschlecht",
+          choices = geschlechter,
+          selected = geschlechter
+        )
+      ),
+      # Wird angezeigt wenn "Altersgruppen" ausgewählt
+      conditionalPanel(
+        condition = "input.typ == 'Altersgruppe'",
+        checkboxGroupInput(
+          inputId = "altersgruppe",
+          label = "Altersgruppe",
+          choices = altersgruppen,
+          selected = altersgruppen
+        )
+      )
     ),
     # Main panel with plot
     mainPanel(
@@ -51,28 +99,42 @@ ui <- fluidPage(
 server <- function(input, output) {
 
   output$distPlot <- renderPlot({
-     
-    BezirkFälle <- table(bezirk)
-    if (input$plotType == "Bezirke"){
-      barplot(cbind(BezirkFälle, BezirkTode) ~ bezirkNamen, main = "Anzahl der Covid-19-Fälle einschließlich Todesfälle nach Bezirken in Berlin", 
-              legend.text = TRUE, args.legend = list(x = 15, y = 10000), xlab = "Bezirke")
-      
-     # modell <- lm(covidData$AnzahlFall ~ covidData$Landkreis)
     
-    } else if (input$plotType == "Todesfälle") {
-      barplot(BezirkTode, main = "Anzahl der Todesfälle an Covid-19 nach Bezirken in Berlin")
-      
-    } else if (input$plotType == "Geschlechter") {
-      barplot(
-        GeschlechtData,
-        beside = TRUE,
-        col = c("blue", "red"),
-        xlab = "Geschlechter",
-        ylab = "Fälle und Todesfälle"
-      )
-      
+    basisDaten <- covidData[, input$typ]
+
+    daten <- NULL
+    farben <- c()
+    namen <- c()
+    for (fallTyp in input$fallTypen) {
+      neuerDatensatz <- table(basisDaten[covidData[, fallTyp] != "0"])
+      if (is.null(daten)) {
+        daten <- neuerDatensatz
+      } else {
+        daten <- rbind(daten, neuerDatensatz)
+      }
+      farben <- c(farben, datenfarben[fallTyp])
+      namen <- c(namen, datennamen[fallTyp])
     }
-     
+    row.names(daten) <- namen
+    
+    if (input$typ == "Landkreis") {
+      daten <- subset(daten, select = input$bezirk)
+    } else if (input$typ == "Geschlecht") {
+      daten <- subset(daten, select = input$geschlecht)
+    } else if (input$typ == "Altersgruppe") {
+      daten <- subset(daten, select = input$altersgruppe)
+    }
+  
+    barplot(
+      daten,
+      beside = TRUE,
+      col = farben,
+      xlab = "",
+      ylab = "",
+      las = 2,
+      cex.names = 0.7
+    )
+    legend("right", y = -30, legend = namen, fill = farben)
   })
 }
 
