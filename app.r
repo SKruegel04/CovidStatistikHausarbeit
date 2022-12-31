@@ -116,6 +116,9 @@ server <- function(input, output) {
       farben <- c(farben, datenfarben[fallTyp])
       namen <- c(namen, datennamen[fallTyp])
     }
+    print(daten)
+    print(namen)
+    print("Cols: %d, Names: %d", ncol(daten), length(namen))
     row.names(daten) <- namen
     
     if (input$typ == "Landkreis") {
