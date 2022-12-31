@@ -10,9 +10,6 @@
 library(shiny)
 covidData <- read.csv("./RKI_COVID19_Berlin.csv")
 
-fall <- covidData$AnzahlFall != "0"
-todesfall <- covidData$AnzahlTodesfall != "0"
-
 datenfarben <- c(
   "AnzahlGenesen" = "green",
   "AnzahlFall" = "blue",
