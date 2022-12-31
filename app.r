@@ -28,7 +28,7 @@ altersgruppen <- unique(covidData$Altersgruppe)
 # Define UI for application that draws a histogram
 ui <- fluidPage(
   # Application title
-  titlePanel("Bezirke"),
+  titlePanel("SARS-CoV-2-Pandemie"),
   sidebarLayout(
     # Panel on the left side of the plot
     sidebarPanel(
