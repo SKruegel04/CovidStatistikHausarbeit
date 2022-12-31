@@ -9,6 +9,13 @@
 
 library(shiny)
 covidData <- read.csv("./RKI_COVID19_Berlin.csv")
+covidData$Meldedatum <- as.Date(covidData$Meldedatum)
+
+fallTypen <- c(
+  "Fälle" = "AnzahlFall",
+  "Todesfälle" = "AnzahlTodesfall",
+  "Genesen" = "AnzahlGenesen"
+)
 
 datenfarben <- c(
   "AnzahlGenesen" = "green",
@@ -21,6 +28,10 @@ datennamen <- c(
   "AnzahlTodesfall" = "Todesfall"
 )
 
+meldedaten <- unique(covidData$Meldedatum)
+meldedaten <- meldedaten[order(meldedaten)]
+startDatum <- meldedaten[1]
+endDatum <- meldedaten[length(meldedaten)]
 bezirke <- unique(covidData$Landkreis)
 geschlechter <- unique(covidData$Geschlecht)
 altersgruppen <- unique(covidData$Altersgruppe)
@@ -45,25 +56,46 @@ ui <- fluidPage(
       selectizeInput(
         inputId = "fallTypen",
         label = "Falltypen:",
-        choices = c(
-          "Fälle" = "AnzahlFall",
-          "Todesfälle" = "AnzahlTodesfall",
-          "Genesen" = "AnzahlGenesen"
-        ),
+        choices = fallTypen,
         selected = c("AnzahlFall", "AnzahlTodesfall"),
         multiple = TRUE,
-        options = list(plugins = list("remove_button"))
+        options = list(
+          plugins = list("remove_button"),
+          minItems = 1
+        )
       ),
       checkboxInput(
         "horizontal",
         "Balkendiagramm"
+      ),
+      dateInput(
+        inputId = "zeitraumVon",
+        label = "Von:",
+        value = startDatum,
+        min = startDatum,
+        max = endDatum,
+        format = "yyyy-mm-dd",
+        startview = "month",
+        weekstart = 1,
+        language = "de"
+      ),
+      dateInput(
+        inputId = "zeitraumBis",
+        label = "Bis:",
+        value = endDatum,
+        min = startDatum,
+        max = endDatum,
+        format = "yyyy-mm-dd",
+        startview = "month",
+        weekstart = 1,
+        language = "de"
       ),
       # Wird angezeigt wenn "Bezirke" ausgewählt
       conditionalPanel(
         condition = "input.typ == 'Landkreis'",
         checkboxGroupInput(
           inputId = "bezirk",
-          label = "Bezirk",
+          label = "Bezirk:",
           choices = bezirke,
           selected = bezirke
         )
@@ -73,7 +105,7 @@ ui <- fluidPage(
         condition = "input.typ == 'Geschlecht'",
         checkboxGroupInput(
           inputId = "geschlecht",
-          label = "Geschlecht",
+          label = "Geschlecht:",
           choices = geschlechter,
           selected = geschlechter
         )
@@ -83,15 +115,15 @@ ui <- fluidPage(
         condition = "input.typ == 'Altersgruppe'",
         checkboxGroupInput(
           inputId = "altersgruppe",
-          label = "Altersgruppe",
+          label = "Altersgruppe:",
           choices = altersgruppen,
           selected = altersgruppen
         )
       )
     ),
-    # Main panel with plot
+    # Main panel mit unserem fertigen Plot
     mainPanel(
-      plotOutput("distPlot")
+      plotOutput("ausgabePlot")
     )
   )
 )
@@ -99,28 +131,39 @@ ui <- fluidPage(
 # Define server logic required to draw a histogram
 server <- function(input, output) {
 
-  output$distPlot <- renderPlot({
+  output$ausgabePlot <- renderPlot({
     
-    basisDaten <- covidData[, input$typ]
+    limitierteDaten = subset(
+      covidData,
+      Meldedatum > input$zeitraumVon & Meldedatum < input$zeitraumBis
+    )
+    
+    # Basis-Datensatz basierend auf "Typ" auswahl
+    basisDaten <- limitierteDaten[, input$typ]
+    
+    # Wenn keine Falltypen ausgewählt, wähle alle aus
+    gewaehlteFallTypen <- input$fallTypen
+    if (length(gewaehlteFallTypen) < 1) {
+      gewaehlteFallTypen <- fallTypen
+    }
 
+    # Erstelle Zeilen im Modell für jeden Falltypen
     daten <- NULL
     farben <- c()
     namen <- c()
-    for (fallTyp in input$fallTypen) {
-      neuerDatensatz <- table(basisDaten[covidData[, fallTyp] != "0"])
+    for (fallTyp in gewaehlteFallTypen) {
+      neuerDatensatz <- table(basisDaten[limitierteDaten[, fallTyp] != "0"])
       if (is.null(daten)) {
-        daten <- neuerDatensatz
+        daten <- rbind(neuerDatensatz)
       } else {
         daten <- rbind(daten, neuerDatensatz)
       }
       farben <- c(farben, datenfarben[fallTyp])
       namen <- c(namen, datennamen[fallTyp])
     }
-    print(daten)
-    print(namen)
-    print("Cols: %d, Names: %d", ncol(daten), length(namen))
     row.names(daten) <- namen
     
+    # Datenfilter auf Basis von bezirk, geschlecht und altersgruppe
     if (input$typ == "Landkreis") {
       daten <- subset(daten, select = input$bezirk)
     } else if (input$typ == "Geschlecht") {
@@ -129,6 +172,7 @@ server <- function(input, output) {
       daten <- subset(daten, select = input$altersgruppe)
     }
   
+    # Plot
     barplot(
       daten,
       beside = TRUE,
@@ -139,6 +183,7 @@ server <- function(input, output) {
       cex.names = 0.7,
       horiz = input$horizontal
     )
+    # Legende für den Plot
     legend("right", y = -30, legend = namen, fill = farben)
   })
 }
