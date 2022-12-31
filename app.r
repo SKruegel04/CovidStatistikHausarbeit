@@ -57,6 +57,10 @@ ui <- fluidPage(
         multiple = TRUE,
         options = list(plugins = list("remove_button"))
       ),
+      checkboxInput(
+        "horizontal",
+        "Balkendiagramm"
+      ),
       # Wird angezeigt wenn "Bezirke" ausgewählt
       conditionalPanel(
         condition = "input.typ == 'Landkreis'",
@@ -132,7 +136,8 @@ server <- function(input, output) {
       xlab = "",
       ylab = "",
       las = 2,
-      cex.names = 0.7
+      cex.names = 0.7,
+      horiz = input$horizontal
     )
     legend("right", y = -30, legend = namen, fill = farben)
   })
