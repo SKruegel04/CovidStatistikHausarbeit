@@ -37,6 +37,12 @@ geschlechter <- unique(covidData$Geschlecht)
 altersgruppen <- unique(covidData$Altersgruppe)
 bezirkNamen <- c("Mitte", "Friedrichshain-\nKreuzberg", "Pankow", "Charlottenburg-\nWilmersdorf","Spandau", "Steglitz-\nZelendorf", "Tempelhof-\nSchöneberg", "Neukölln", 
                  "Treptow-\nKöpenick", "Marzahn-\nHellersdorf", "Lichtenberg", "Reinickendorf")
+genesen <- covidData$AnzahlGenesen > "0"
+geschlecht_genesen <- table(covidData$Geschlecht[genesen])
+todesfall <- covidData$AnzahlTodesfall != "0"
+geschlecht_tode <- table(covidData$Geschlecht[todesfall])
+matr_geschlechter <- rbind(sort(geschlecht_tode), sort(geschlecht_genesen))
+
 
 
 # Define UI for application that draws a histogram
@@ -69,8 +75,9 @@ ui <- fluidPage(
       ),
       checkboxInput(
         "horizontal",
-        "Balkendiagramm"
+        "Horizontal"
       ),
+      
       dateInput(
         inputId = "zeitraumVon",
         label = "Von:",
@@ -106,12 +113,17 @@ ui <- fluidPage(
       # Wird angezeigt wenn "Geschlechter" ausgewählt
       conditionalPanel(
         condition = "input.typ == 'Geschlecht'",
+        checkboxInput(
+          "mosaicplot",
+          "Mosaikplot"
+        ),
         checkboxGroupInput(
           inputId = "geschlecht",
           label = "Geschlecht:",
           choices = geschlechter,
           selected = geschlechter
         )
+        
       ),
       # Wird angezeigt wenn "Altersgruppen" ausgewählt
       conditionalPanel(
@@ -167,6 +179,7 @@ server <- function(input, output) {
     row.names(daten) <- namen
     
     # Datenfilter auf Basis von bezirk, geschlecht und altersgruppe
+    # Plot
     if (input$typ == "Landkreis") {
       daten <- subset(daten, select = input$bezirk)
       barplot(
@@ -193,6 +206,16 @@ server <- function(input, output) {
         cex.names = 0.7,
         horiz = input$horizontal
       )
+      if(input$mosaicplot){
+        legend = NULL
+        mosaicplot(matr_geschlechter, dir = c("h", "v"),
+                   main = "Mosaikplot",
+                   color = "skyblue2", 
+                   xlab = "Geschlecht",
+                   ylab = "Genesen/Verstorben",
+                   las = 1)
+        
+      }
       
     } else if (input$typ == "Altersgruppe") {
       daten <- subset(daten, select = input$altersgruppe)
@@ -207,7 +230,7 @@ server <- function(input, output) {
       )
     }
   
-    # Plot
+   
     
     # Legende für den Plot
     legend("right", y = -30, legend = namen, fill = farben)
