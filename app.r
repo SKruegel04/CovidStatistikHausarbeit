@@ -35,6 +35,9 @@ endDatum <- meldedaten[length(meldedaten)]
 bezirke <- unique(covidData$Landkreis)
 geschlechter <- unique(covidData$Geschlecht)
 altersgruppen <- unique(covidData$Altersgruppe)
+bezirkNamen <- c("Mitte", "Friedrichshain-\nKreuzberg", "Pankow", "Charlottenburg-\nWilmersdorf","Spandau", "Steglitz-\nZelendorf", "Tempelhof-\nSchöneberg", "Neukölln", 
+                 "Treptow-\nKöpenick", "Marzahn-\nHellersdorf", "Lichtenberg", "Reinickendorf")
+
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
@@ -166,23 +169,46 @@ server <- function(input, output) {
     # Datenfilter auf Basis von bezirk, geschlecht und altersgruppe
     if (input$typ == "Landkreis") {
       daten <- subset(daten, select = input$bezirk)
+      barplot(
+        daten,
+        names.arg = bezirkNamen,
+        beside = TRUE,
+        col = farben,
+        xlab = "",
+        ylab = "",
+        las = 2,
+        cex.names = 0.7,
+        horiz = input$horizontal
+      )
+      
+      
     } else if (input$typ == "Geschlecht") {
       daten <- subset(daten, select = input$geschlecht)
+      barplot(
+        daten,
+        beside = TRUE,
+        col = farben,
+        xlab = "",
+        ylab = "",
+        cex.names = 0.7,
+        horiz = input$horizontal
+      )
+      
     } else if (input$typ == "Altersgruppe") {
       daten <- subset(daten, select = input$altersgruppe)
+      barplot(
+        daten,
+        beside = TRUE,
+        col = farben,
+        xlab = "",
+        ylab = "",
+        cex.names = 0.7,
+        horiz = input$horizontal
+      )
     }
   
     # Plot
-    barplot(
-      daten,
-      beside = TRUE,
-      col = farben,
-      xlab = "",
-      ylab = "",
-      las = 2,
-      cex.names = 0.7,
-      horiz = input$horizontal
-    )
+    
     # Legende für den Plot
     legend("right", y = -30, legend = namen, fill = farben)
   })
