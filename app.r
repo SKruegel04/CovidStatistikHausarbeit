@@ -37,11 +37,14 @@ geschlechter <- unique(covidData$Geschlecht)
 altersgruppen <- unique(covidData$Altersgruppe)
 bezirkNamen <- c("Mitte", "Friedrichshain-\nKreuzberg", "Pankow", "Charlottenburg-\nWilmersdorf","Spandau", "Steglitz-\nZelendorf", "Tempelhof-\nSchöneberg", "Neukölln", 
                  "Treptow-\nKöpenick", "Marzahn-\nHellersdorf", "Lichtenberg", "Reinickendorf")
-genesen <- covidData$AnzahlGenesen > "0"
-geschlecht_genesen <- table(covidData$Geschlecht[genesen])
+genesene <- covidData$AnzahlGenesen > "0"
+Genesene_geschlecht <- sort(table(covidData$Geschlecht[genesene]))
 todesfall <- covidData$AnzahlTodesfall != "0"
-geschlecht_tode <- table(covidData$Geschlecht[todesfall])
-matr_geschlechter <- rbind(sort(geschlecht_tode), sort(geschlecht_genesen))
+Verstorbene_geschlecht <- sort(table(covidData$Geschlecht[todesfall]))
+matr_geschlechter <- rbind(Verstorbene_geschlecht, Genesene_geschlecht)
+Genesene_alter <- table(covidData$Altersgruppe[genesene])
+Verstorbene_alter <- table(covidData$Altersgruppe[todesfall])
+matr_alter <- cbind(Verstorbene_alter, Genesene_alter)
 
 
 
@@ -114,7 +117,7 @@ ui <- fluidPage(
       conditionalPanel(
         condition = "input.typ == 'Geschlecht'",
         checkboxInput(
-          "mosaicplot",
+          "mosaicplot_geschlecht",
           "Mosaikplot"
         ),
         checkboxGroupInput(
@@ -128,6 +131,10 @@ ui <- fluidPage(
       # Wird angezeigt wenn "Altersgruppen" ausgewählt
       conditionalPanel(
         condition = "input.typ == 'Altersgruppe'",
+        checkboxInput(
+          "mosaicplot_alter",
+          "Mosaikplot"
+        ),
         checkboxGroupInput(
           inputId = "altersgruppe",
           label = "Altersgruppe:",
@@ -193,6 +200,8 @@ server <- function(input, output) {
         cex.names = 0.7,
         horiz = input$horizontal
       )
+      # Legende für den Plot
+      legend("right", y = -30, legend = namen, fill = farben)
       
       
     } else if (input$typ == "Geschlecht") {
@@ -206,13 +215,16 @@ server <- function(input, output) {
         cex.names = 0.7,
         horiz = input$horizontal
       )
-      if(input$mosaicplot){
-        legend = NULL
+      # Legende für den Plot
+      legend("right", y = -30, legend = namen, fill = farben)
+      
+      if(input$mosaicplot_geschlecht){
+       
         mosaicplot(matr_geschlechter, dir = c("h", "v"),
                    main = "Mosaikplot",
                    color = "skyblue2", 
                    xlab = "Geschlecht",
-                   ylab = "Genesen/Verstorben",
+                   cex.names = 1,
                    las = 1)
         
       }
@@ -228,12 +240,19 @@ server <- function(input, output) {
         cex.names = 0.7,
         horiz = input$horizontal
       )
+      # Legende für den Plot
+      legend("right", y = -30, legend = namen, fill = farben)
+      
+      if(input$mosaicplot_alter){
+        mosaicplot(matr_alter, 
+                   main = "Mosaikplot", 
+                   las = 4,
+                   xlab = "Altersgruppe",
+                   color = "skyblue")
+        
+      }
     }
-  
-   
     
-    # Legende für den Plot
-    legend("right", y = -30, legend = namen, fill = farben)
   })
 }
 
