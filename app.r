@@ -45,6 +45,9 @@ matr_geschlechter <- rbind(Verstorbene_geschlecht, Genesene_geschlecht)
 Genesene_alter <- table(covidData$Altersgruppe[genesene])
 Verstorbene_alter <- table(covidData$Altersgruppe[todesfall])
 matr_alter <- cbind(Verstorbene_alter, Genesene_alter)
+Genesene_bezirk <- table(covidData$Landkreis[genesene])
+Verstorbene_bezirk <- table(covidData$Landkreis[todesfall])
+matr_bezirke <- cbind(Verstorbene_bezirk, Genesene_bezirk)
 
 
 
@@ -106,6 +109,10 @@ ui <- fluidPage(
       # Wird angezeigt wenn "Bezirke" ausgewählt
       conditionalPanel(
         condition = "input.typ == 'Landkreis'",
+        checkboxInput(
+          "mosaicplot_bezirk",
+          "Mosaikplot"
+        ),
         checkboxGroupInput(
           inputId = "bezirk",
           label = "Bezirk:",
@@ -202,6 +209,15 @@ server <- function(input, output) {
       )
       # Legende für den Plot
       legend("right", y = -30, legend = namen, fill = farben)
+      
+      if(input$mosaicplot_bezirk){
+        mosaicplot(matr_bezirke, 
+                   main = "Mosaikplot", 
+                   las = 3,
+                   xlab = "Bezirke",
+                   color = "skyblue")
+        
+      }
       
       
     } else if (input$typ == "Geschlecht") {
