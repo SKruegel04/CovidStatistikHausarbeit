@@ -8,8 +8,15 @@
 #
 
 library(shiny)
+
+library (readxl)
 covidData <- read.csv("./RKI_COVID19_Berlin.csv")
 covidData$Meldedatum <- as.Date(covidData$Meldedatum)
+
+bevölkerungsData <- read_excel ("SB_A01-05-00_2022h01_BE.xlsx", sheet = "T6", na = "NA")
+bevölkerung_bezirke <- as.numeric(bevölkerungsData$...2[129:140])
+
+
 
 fallTypen <- c(
   "Fälle" = "AnzahlFall",
@@ -48,6 +55,7 @@ matr_alter <- cbind(Verstorbene_alter, Genesene_alter)
 Genesene_bezirk <- table(covidData$Landkreis[genesene])
 Verstorbene_bezirk <- table(covidData$Landkreis[todesfall])
 matr_bezirke <- cbind(Verstorbene_bezirk, Genesene_bezirk)
+bezirke_prop <- table(covidData$Landkreis)/bevölkerung_bezirke
 
 
 
@@ -84,6 +92,7 @@ ui <- fluidPage(
         "Horizontal"
       ),
       
+      
       dateInput(
         inputId = "zeitraumVon",
         label = "Von:",
@@ -113,6 +122,10 @@ ui <- fluidPage(
           "mosaicplot_bezirk",
           "Mosaikplot"
         ),
+        checkboxInput(
+          "proportional_bezirke",
+          "Proportional"
+        ),
         checkboxGroupInput(
           inputId = "bezirk",
           label = "Bezirk:",
@@ -127,6 +140,7 @@ ui <- fluidPage(
           "mosaicplot_geschlecht",
           "Mosaikplot"
         ),
+        
         checkboxGroupInput(
           inputId = "geschlecht",
           label = "Geschlecht:",
@@ -142,6 +156,7 @@ ui <- fluidPage(
           "mosaicplot_alter",
           "Mosaikplot"
         ),
+        
         checkboxGroupInput(
           inputId = "altersgruppe",
           label = "Altersgruppe:",
@@ -213,10 +228,20 @@ server <- function(input, output) {
       if(input$mosaicplot_bezirk){
         mosaicplot(matr_bezirke, 
                    main = "Mosaikplot", 
-                   las = 3,
+                   las = 4,
                    xlab = "Bezirke",
                    color = "skyblue")
         
+      }
+      if(input$proportional_bezirke){
+        barplot(sort(bezirke_prop),
+                beside = TRUE,
+                col = "blue",
+                xlab = "",
+                ylab = "",
+                las = 2,
+                cex.names = 0.4,
+                horiz = input$horizontal)
       }
       
       
