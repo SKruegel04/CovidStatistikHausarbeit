@@ -42,20 +42,22 @@ endDatum <- meldedaten[length(meldedaten)]
 bezirke <- unique(covidData$Landkreis)
 geschlechter <- unique(covidData$Geschlecht)
 altersgruppen <- unique(covidData$Altersgruppe)
-bezirkNamen <- c("Mitte", "Friedrichshain-\nKreuzberg", "Pankow", "Charlottenburg-\nWilmersdorf","Spandau", "Steglitz-\nZelendorf", "Tempelhof-\nSchöneberg", "Neukölln", 
-                 "Treptow-\nKöpenick", "Marzahn-\nHellersdorf", "Lichtenberg", "Reinickendorf")
-genesene <- covidData$AnzahlGenesen > "0"
-Genesene_geschlecht <- sort(table(covidData$Geschlecht[genesene]))
+genesen <- covidData$AnzahlGenesen > "0"
+Genesene_geschlecht <- sort(table(covidData$Geschlecht[genesen]))
 todesfall <- covidData$AnzahlTodesfall != "0"
 Verstorbene_geschlecht <- sort(table(covidData$Geschlecht[todesfall]))
 matr_geschlechter <- rbind(Verstorbene_geschlecht, Genesene_geschlecht)
-Genesene_alter <- table(covidData$Altersgruppe[genesene])
+Genesene_alter <- table(covidData$Altersgruppe[genesen])
 Verstorbene_alter <- table(covidData$Altersgruppe[todesfall])
 matr_alter <- cbind(Verstorbene_alter, Genesene_alter)
-Genesene_bezirk <- table(covidData$Landkreis[genesene])
+
+Genesene_bezirk <- table(covidData$Landkreis[genesen])
 Verstorbene_bezirk <- table(covidData$Landkreis[todesfall])
 matr_bezirke <- cbind(Verstorbene_bezirk, Genesene_bezirk)
-bezirke_prop <- table(covidData$Landkreis)/bevölkerung_bezirke
+
+bezirkfall_prop <- table(covidData$Landkreis)/bevölkerung_bezirke
+bezirktod_prop <- Verstorbene_bezirk/bevölkerung_bezirke
+bezirkgenesen_prop <- Genesene_bezirk/bevölkerung_bezirke
 
 
 
@@ -207,24 +209,24 @@ server <- function(input, output) {
     }
     row.names(daten) <- namen
     
-    # Datenfilter auf Basis von bezirk, geschlecht und altersgruppe
+    # Datenfilter auf Basis von Bezirk
     # Plot
     if (input$typ == "Landkreis") {
       daten <- subset(daten, select = input$bezirk)
       barplot(
         daten,
-        names.arg = bezirkNamen,
         beside = TRUE,
         col = farben,
         xlab = "",
         ylab = "",
         las = 2,
-        cex.names = 0.7,
+        cex.names = 0.3,
         horiz = input$horizontal
       )
       # Legende für den Plot
       legend("right", y = -30, legend = namen, fill = farben)
       
+      #Mosaikplot für Bezirke wird geplotet
       if(input$mosaicplot_bezirk){
         mosaicplot(matr_bezirke, 
                    main = "Mosaikplot", 
@@ -233,18 +235,28 @@ server <- function(input, output) {
                    color = "skyblue")
         
       }
-      if(input$proportional_bezirke){
-        barplot(sort(bezirke_prop),
-                beside = TRUE,
-                col = "blue",
+     # while(input$proportional_bezirke){
+     #  if(input$falltypen){
+     #    barplot((table(covidData$Landkreis[fallTypen]))/bevölkerung_bezirke,
+     #            beside = TRUE,
+     #            col = datenfarben)
+      #  }
+      #}
+    #Barplot für den relativen Anteil der gesamten Bevölkerung wird geplotet
+     if(input$proportional_bezirke){
+         barplot(rbind(bezirkgenesen_prop, bezirkfall_prop, bezirktod_prop),
+               beside = TRUE,
+                col = datenfarben,
                 xlab = "",
                 ylab = "",
                 las = 2,
                 cex.names = 0.4,
                 horiz = input$horizontal)
+        legend("right", y = -30, legend = namen, fill = farben)
       }
       
-      
+      # Datenfilter auf Basis von Geschlecht
+      # Plot  
     } else if (input$typ == "Geschlecht") {
       daten <- subset(daten, select = input$geschlecht)
       barplot(
@@ -259,8 +271,8 @@ server <- function(input, output) {
       # Legende für den Plot
       legend("right", y = -30, legend = namen, fill = farben)
       
+      #Mosaikplot für Geschlechter wird geplotet
       if(input$mosaicplot_geschlecht){
-       
         mosaicplot(matr_geschlechter, dir = c("h", "v"),
                    main = "Mosaikplot",
                    color = "skyblue2", 
@@ -270,6 +282,8 @@ server <- function(input, output) {
         
       }
       
+      # Datenfilter auf Basis von Altersgruppe
+      # Plot 
     } else if (input$typ == "Altersgruppe") {
       daten <- subset(daten, select = input$altersgruppe)
       barplot(
@@ -284,6 +298,7 @@ server <- function(input, output) {
       # Legende für den Plot
       legend("right", y = -30, legend = namen, fill = farben)
       
+      ##Mosaikplot für Alter wird geplotet
       if(input$mosaicplot_alter){
         mosaicplot(matr_alter, 
                    main = "Mosaikplot", 
