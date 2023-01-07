@@ -17,7 +17,6 @@ bevölkerungsData <- read_excel ("SB_A01-05-00_2022h01_BE.xlsx", sheet = "T6", n
 bevölkerung_bezirke <- as.numeric(bevölkerungsData$...2[129:140])
 
 
-
 fallTypen <- c(
   "Fälle" = "AnzahlFall",
   "Todesfälle" = "AnzahlTodesfall",
@@ -58,6 +57,8 @@ matr_bezirke <- cbind(Verstorbene_bezirk, Genesene_bezirk)
 bezirkfall_prop <- table(covidData$Landkreis)/bevölkerung_bezirke
 bezirktod_prop <- Verstorbene_bezirk/bevölkerung_bezirke
 bezirkgenesen_prop <- Genesene_bezirk/bevölkerung_bezirke
+anzahlFahl_ts <- ts(covidData$AnzahlFall)
+
 
 
 
@@ -93,7 +94,10 @@ ui <- fluidPage(
         "horizontal",
         "Horizontal"
       ),
-      
+      checkboxInput(
+        "proportional_bezirke",
+        "Proportional zu den Bevölkerungsgrößen"
+      ),
       
       dateInput(
         inputId = "zeitraumVon",
@@ -106,6 +110,7 @@ ui <- fluidPage(
         weekstart = 1,
         language = "de"
       ),
+      
       dateInput(
         inputId = "zeitraumBis",
         label = "Bis:",
@@ -117,6 +122,10 @@ ui <- fluidPage(
         weekstart = 1,
         language = "de"
       ),
+      
+      checkboxInput("zeitreihe", 
+                    label = "Zeitreihe"),
+      
       # Wird angezeigt wenn "Bezirke" ausgewählt
       conditionalPanel(
         condition = "input.typ == 'Landkreis'",
@@ -124,10 +133,7 @@ ui <- fluidPage(
           "mosaicplot_bezirk",
           "Mosaikplot"
         ),
-        checkboxInput(
-          "proportional_bezirke",
-          "Proportional"
-        ),
+        
         checkboxGroupInput(
           inputId = "bezirk",
           label = "Bezirk:",
@@ -179,10 +185,13 @@ server <- function(input, output) {
 
   output$ausgabePlot <- renderPlot({
     
+   
+    
     limitierteDaten = subset(
       covidData,
       Meldedatum > input$zeitraumVon & Meldedatum < input$zeitraumBis
     )
+    
     
     # Basis-Datensatz basierend auf "Typ" auswahl
     basisDaten <- limitierteDaten[, input$typ]
@@ -208,6 +217,8 @@ server <- function(input, output) {
       namen <- c(namen, datennamen[fallTyp])
     }
     row.names(daten) <- namen
+    
+    
     
     # Datenfilter auf Basis von Bezirk
     # Plot
@@ -235,25 +246,23 @@ server <- function(input, output) {
                    color = "skyblue")
         
       }
-     # while(input$proportional_bezirke){
-     #  if(input$falltypen){
-     #    barplot((table(covidData$Landkreis[fallTypen]))/bevölkerung_bezirke,
-     #            beside = TRUE,
-     #            col = datenfarben)
-      #  }
-      #}
+      
+     
     #Barplot für den relativen Anteil der gesamten Bevölkerung wird geplotet
      if(input$proportional_bezirke){
-         barplot(rbind(bezirkgenesen_prop, bezirkfall_prop, bezirktod_prop),
+     #  daten <- subset(covidData$Landkreis == input$bezirk, covidData$AnzahlFall > 0)
+    #   ergebnis <- table(daten)/bevölkerung_bezirke
+       barplot(rbind(bezirkgenesen_prop, bezirkfall_prop, bezirktod_prop),
                beside = TRUE,
-                col = datenfarben,
-                xlab = "",
-                ylab = "",
-                las = 2,
-                cex.names = 0.4,
-                horiz = input$horizontal)
-        legend("right", y = -30, legend = namen, fill = farben)
-      }
+               col = datenfarben,
+               xlab = "",
+               ylab = "",
+               las = 2,
+               cex.names = 0.4,
+               horiz = input$horizontal)
+       legend("right", y = -30, 
+              legend = datennamen, fill = datenfarben)
+     }
       
       # Datenfilter auf Basis von Geschlecht
       # Plot  
@@ -281,6 +290,12 @@ server <- function(input, output) {
                    las = 1)
         
       }
+      if(input$zeitreihe){
+        zeit <- subset(covidData$AnzahlFall, covidData$Meldedatum >= input$zeitraumVon & covidData$Meldedatum <= input$zeitraumBis)
+      plot(ts(zeit))
+        
+      }
+     
       
       # Datenfilter auf Basis von Altersgruppe
       # Plot 
@@ -308,6 +323,7 @@ server <- function(input, output) {
         
       }
     }
+    
     
   })
 }
