@@ -291,7 +291,8 @@ server <- function(input, output) {
         
       }
       if(input$zeitreihe){
-        zeit <- subset(covidData$AnzahlFall, covidData$Meldedatum >= input$zeitraumVon & covidData$Meldedatum <= input$zeitraumBis)
+        zeit <- subset(covidData$AnzahlFall, 
+                       covidData$Meldedatum >= input$zeitraumVon & covidData$Meldedatum <= input$zeitraumBis)
       plot(ts(zeit))
         
       }
