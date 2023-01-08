@@ -8,14 +8,15 @@
 #
 
 library(shiny)
-
+library(ggplot2)
+library(dplyr)
 library (readxl)
+
 covidData <- read.csv("./RKI_COVID19_Berlin.csv")
 covidData$Meldedatum <- as.Date(covidData$Meldedatum)
 
 bevölkerungsData <- read_excel ("SB_A01-05-00_2022h01_BE.xlsx", sheet = "T6", na = "NA")
 bevölkerung_bezirke <- as.numeric(bevölkerungsData$...2[129:140])
-
 
 fallTypen <- c(
   "Fälle" = "AnzahlFall",
@@ -41,26 +42,6 @@ endDatum <- meldedaten[length(meldedaten)]
 bezirke <- unique(covidData$Landkreis)
 geschlechter <- unique(covidData$Geschlecht)
 altersgruppen <- unique(covidData$Altersgruppe)
-genesen <- covidData$AnzahlGenesen > "0"
-Genesene_geschlecht <- sort(table(covidData$Geschlecht[genesen]))
-todesfall <- covidData$AnzahlTodesfall != "0"
-Verstorbene_geschlecht <- sort(table(covidData$Geschlecht[todesfall]))
-matr_geschlechter <- rbind(Verstorbene_geschlecht, Genesene_geschlecht)
-Genesene_alter <- table(covidData$Altersgruppe[genesen])
-Verstorbene_alter <- table(covidData$Altersgruppe[todesfall])
-matr_alter <- cbind(Verstorbene_alter, Genesene_alter)
-
-Genesene_bezirk <- table(covidData$Landkreis[genesen])
-Verstorbene_bezirk <- table(covidData$Landkreis[todesfall])
-matr_bezirke <- cbind(Verstorbene_bezirk, Genesene_bezirk)
-
-bezirkfall_prop <- table(covidData$Landkreis)/bevölkerung_bezirke
-bezirktod_prop <- Verstorbene_bezirk/bevölkerung_bezirke
-bezirkgenesen_prop <- Genesene_bezirk/bevölkerung_bezirke
-anzahlFahl_ts <- ts(covidData$AnzahlFall)
-
-
-
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
@@ -83,20 +64,25 @@ ui <- fluidPage(
         inputId = "fallTypen",
         label = "Falltypen:",
         choices = fallTypen,
-        selected = c("AnzahlFall", "AnzahlTodesfall"),
+        selected = c("AnzahlTodesfall", "AnzahlGenesen"),
         multiple = TRUE,
         options = list(
           plugins = list("remove_button"),
           minItems = 1
         )
       ),
-      checkboxInput(
-        "horizontal",
-        "Horizontal"
-      ),
-      checkboxInput(
-        "proportional_bezirke",
-        "Proportional zu den Bevölkerungsgrößen"
+      
+      selectInput(
+        inputId = "chartTyp",
+        label = "Darstellung:",
+        choices = c(
+          "Barplot" = "Barplot",
+          "Barplot (Horizontal)" = "BarplotHorizontal",
+          "Barplot (Proportional zu Bevölkerungsgröße)" = "BarplotProportional",
+          "Mosaikplot" = "Mosaikplot",
+          "Zeitreihe" = "Zeitreihe"
+        ),
+        selected = "Barplot"
       ),
       
       dateInput(
@@ -123,16 +109,9 @@ ui <- fluidPage(
         language = "de"
       ),
       
-      checkboxInput("zeitreihe", 
-                    label = "Zeitreihe"),
-      
       # Wird angezeigt wenn "Bezirke" ausgewählt
       conditionalPanel(
         condition = "input.typ == 'Landkreis'",
-        checkboxInput(
-          "mosaicplot_bezirk",
-          "Mosaikplot"
-        ),
         
         checkboxGroupInput(
           inputId = "bezirk",
@@ -144,27 +123,18 @@ ui <- fluidPage(
       # Wird angezeigt wenn "Geschlechter" ausgewählt
       conditionalPanel(
         condition = "input.typ == 'Geschlecht'",
-        checkboxInput(
-          "mosaicplot_geschlecht",
-          "Mosaikplot"
-        ),
-        
+
         checkboxGroupInput(
           inputId = "geschlecht",
           label = "Geschlecht:",
           choices = geschlechter,
           selected = geschlechter
         )
-        
       ),
       # Wird angezeigt wenn "Altersgruppen" ausgewählt
       conditionalPanel(
         condition = "input.typ == 'Altersgruppe'",
-        checkboxInput(
-          "mosaicplot_alter",
-          "Mosaikplot"
-        ),
-        
+
         checkboxGroupInput(
           inputId = "altersgruppe",
           label = "Altersgruppe:",
@@ -184,9 +154,7 @@ ui <- fluidPage(
 server <- function(input, output) {
 
   output$ausgabePlot <- renderPlot({
-    
-   
-    
+
     limitierteDaten = subset(
       covidData,
       Meldedatum > input$zeitraumVon & Meldedatum < input$zeitraumBis
@@ -200,6 +168,11 @@ server <- function(input, output) {
     gewaehlteFallTypen <- input$fallTypen
     if (length(gewaehlteFallTypen) < 1) {
       gewaehlteFallTypen <- fallTypen
+    }
+    
+    # Fixiere FallTypen für "Zeitreihe" auf "AnzahlFall"
+    if (input$chartTyp == "Zeitreihe") {
+      gewaehlteFallTypen <- c("AnzahlFall")
     }
 
     # Erstelle Zeilen im Modell für jeden Falltypen
@@ -221,87 +194,16 @@ server <- function(input, output) {
     
     
     # Datenfilter auf Basis von Bezirk
-    # Plot
     if (input$typ == "Landkreis") {
       daten <- subset(daten, select = input$bezirk)
-      barplot(
-        daten,
-        beside = TRUE,
-        col = farben,
-        xlab = "",
-        ylab = "",
-        las = 2,
-        cex.names = 0.3,
-        horiz = input$horizontal
-      )
-      # Legende für den Plot
-      legend("right", y = -30, legend = namen, fill = farben)
-      
-      #Mosaikplot für Bezirke wird geplotet
-      if(input$mosaicplot_bezirk){
-        mosaicplot(matr_bezirke, 
-                   main = "Mosaikplot", 
-                   las = 4,
-                   xlab = "Bezirke",
-                   color = "skyblue")
-        
-      }
-      
-     
-    #Barplot für den relativen Anteil der gesamten Bevölkerung wird geplotet
-     if(input$proportional_bezirke){
-     #  daten <- subset(covidData$Landkreis == input$bezirk, covidData$AnzahlFall > 0)
-    #   ergebnis <- table(daten)/bevölkerung_bezirke
-       barplot(rbind(bezirkgenesen_prop, bezirkfall_prop, bezirktod_prop),
-               beside = TRUE,
-               col = datenfarben,
-               xlab = "",
-               ylab = "",
-               las = 2,
-               cex.names = 0.4,
-               horiz = input$horizontal)
-       legend("right", y = -30, 
-              legend = datennamen, fill = datenfarben)
-     }
-      
-      # Datenfilter auf Basis von Geschlecht
-      # Plot  
     } else if (input$typ == "Geschlecht") {
       daten <- subset(daten, select = input$geschlecht)
-      barplot(
-        daten,
-        beside = TRUE,
-        col = farben,
-        xlab = "",
-        ylab = "",
-        cex.names = 0.7,
-        horiz = input$horizontal
-      )
-      # Legende für den Plot
-      legend("right", y = -30, legend = namen, fill = farben)
-      
-      #Mosaikplot für Geschlechter wird geplotet
-      if(input$mosaicplot_geschlecht){
-        mosaicplot(matr_geschlechter, dir = c("h", "v"),
-                   main = "Mosaikplot",
-                   color = "skyblue2", 
-                   xlab = "Geschlecht",
-                   cex.names = 1,
-                   las = 1)
-        
-      }
-      if(input$zeitreihe){
-        zeit <- subset(covidData$AnzahlFall, 
-                       covidData$Meldedatum >= input$zeitraumVon & covidData$Meldedatum <= input$zeitraumBis)
-      plot(ts(zeit))
-        
-      }
-     
-      
-      # Datenfilter auf Basis von Altersgruppe
-      # Plot 
     } else if (input$typ == "Altersgruppe") {
       daten <- subset(daten, select = input$altersgruppe)
+    }
+    
+    # Plot auf Basis von chartType eingabe
+    if (input$chartTyp %in% c("Barplot", "BarplotHorizontal")) {
       barplot(
         daten,
         beside = TRUE,
@@ -309,23 +211,44 @@ server <- function(input, output) {
         xlab = "",
         ylab = "",
         cex.names = 0.7,
-        horiz = input$horizontal
+        horiz = input$chartTyp == "BarplotHorizontal"
       )
       # Legende für den Plot
       legend("right", y = -30, legend = namen, fill = farben)
+    } else if (input$chartTyp == "BarplotProportional") {
       
-      ##Mosaikplot für Alter wird geplotet
-      if(input$mosaicplot_alter){
-        mosaicplot(matr_alter, 
-                   main = "Mosaikplot", 
-                   las = 4,
-                   xlab = "Altersgruppe",
-                   color = "skyblue")
-        
-      }
+      barplot(
+        daten / bevölkerung_bezirke,
+        beside = TRUE,
+        col = farben,
+        xlab = "",
+        ylab = "",
+        cex.names = 0.7,
+        horiz = input$chartTyp == "BarplotHorizontal"
+      )
+      # Legende für den Plot
+      legend("right", y = -30, legend = namen, fill = farben)
+    } else if (input$chartTyp == "Mosaikplot") {
+      mosaicplot(
+        t(daten),
+        dir = c("h", "v"),
+        main = "Mosaikplot",
+        color = "skyblue2", 
+        xlab = input$typ,
+        cex.names = 1,
+        las = 1
+      )
+    } else if (input$chartTyp == "Zeitreihe") {
+      zeit <- subset(
+        covidData$AnzahlFall, 
+        covidData$Meldedatum >= input$zeitraumVon & covidData$Meldedatum <= input$zeitraumBis
+      )
+      plot(
+        ts(zeit),
+        ylab = "Fälle pro Zeiteinheit",
+        xlab = "Zeitverlauf"
+      )
     }
-    
-    
   })
 }
 
