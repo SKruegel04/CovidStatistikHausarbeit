@@ -78,9 +78,10 @@ ui <- fluidPage(
         choices = c(
           "Barplot" = "Barplot",
           "Barplot (Horizontal)" = "BarplotHorizontal",
-          "Barplot (Proportional zu Bevölkerungsgröße)" = "BarplotProportional",
+          "Barplot (relative Häufigkeit nach Bezirksbevölkerungsgröße)" = "BarplotProportional",
           "Mosaikplot" = "Mosaikplot",
-          "Zeitreihe" = "Zeitreihe"
+          "Zeitreihe" = "Zeitreihe",
+          "Trend" = "Trend"
         ),
         selected = "Barplot"
       ),
@@ -210,7 +211,8 @@ server <- function(input, output) {
         col = farben,
         xlab = "",
         ylab = "",
-        cex.names = 0.7,
+        cex.names = 0.5,
+        las = 2,
         horiz = input$chartTyp == "BarplotHorizontal"
       )
       # Legende für den Plot
@@ -223,7 +225,8 @@ server <- function(input, output) {
         col = farben,
         xlab = "",
         ylab = "",
-        cex.names = 0.7,
+        cex.names = 0.5,
+        las = 2,
         horiz = input$chartTyp == "BarplotHorizontal"
       )
       # Legende für den Plot
@@ -239,16 +242,20 @@ server <- function(input, output) {
         las = 1
       )
     } else if (input$chartTyp == "Zeitreihe") {
-      zeit <- subset(
-        covidData$AnzahlFall, 
-        covidData$Meldedatum >= input$zeitraumVon & covidData$Meldedatum <= input$zeitraumBis
-      )
-      plot(
-        ts(zeit),
-        ylab = "Fälle pro Zeiteinheit",
-        xlab = "Zeitverlauf"
-      )
-    }
+    
+      ggplot(data=covidData, aes(x=covidData$Meldedatum, y=covidData$AnzahlFall)) + 
+        geom_line() + geom_smooth() + 
+        labs(x = 'Meldedatum',
+             y = 'Anzahl Covid-19 Fälle') + 
+        ggtitle('Covid-19 Fälle')
+      
+      } else if (input$chartTyp == "Trend") {
+      
+      ggplot(data=covidData, aes(x=covidData$Meldedatum, y=covidData$AnzahlFall)) + 
+        geom_smooth() + labs(x = 'Meldedatum', y = 'Anzahl Covid-19 Fälle') +
+        ggtitle('Trend der Covid-19 Fälle')
+      
+     }
   })
 }
 
