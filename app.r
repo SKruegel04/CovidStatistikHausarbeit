@@ -17,6 +17,9 @@ covidData$Meldedatum <- as.Date(covidData$Meldedatum)
 
 bevölkerungsData <- read_excel ("SB_A01-05-00_2022h01_BE.xlsx", sheet = "T6", na = "NA")
 bevölkerung_bezirke <- as.numeric(bevölkerungsData$...2[129:140])
+bevölkerung_insgesamt <- as.numeric(bevölkerungsData$...14[141])
+
+
 
 fallTypen <- c(
   "Fälle" = "AnzahlFall",
@@ -78,7 +81,8 @@ ui <- fluidPage(
         choices = c(
           "Barplot" = "Barplot",
           "Barplot (Horizontal)" = "BarplotHorizontal",
-          "Barplot (relative Häufigkeit nach Bezirksbevölkerungsgröße)" = "BarplotProportional",
+          "Barplot (relative Häufigkeit nach Bezirksbevölkerungsgröße)" = "BarplotProportionalBezirke",
+          "Barplot (relative Häufigkeit nach Bevölkerungsgröße)" = "BarplotProportionalGesamt",
           "Mosaikplot" = "Mosaikplot",
           "Zeitreihe" = "Zeitreihe",
           "Trend" = "Trend"
@@ -109,7 +113,7 @@ ui <- fluidPage(
         weekstart = 1,
         language = "de"
       ),
-      
+
       # Wird angezeigt wenn "Bezirke" ausgewählt
       conditionalPanel(
         condition = "input.typ == 'Landkreis'",
@@ -173,9 +177,9 @@ server <- function(input, output) {
     
     # Fixiere FallTypen für "Zeitreihe" auf "AnzahlFall"
     if (input$chartTyp == "Zeitreihe") {
-      gewaehlteFallTypen <- c("AnzahlFall")
+     # gewaehlteFallTypen <- c("AnzahlFall")
     }
-
+   
     # Erstelle Zeilen im Modell für jeden Falltypen
     daten <- NULL
     farben <- c()
@@ -211,16 +215,30 @@ server <- function(input, output) {
         col = farben,
         xlab = "",
         ylab = "",
-        cex.names = 0.5,
+        cex.names = 0.3,
         las = 2,
         horiz = input$chartTyp == "BarplotHorizontal"
       )
       # Legende für den Plot
       legend("right", y = -30, legend = namen, fill = farben)
-    } else if (input$chartTyp == "BarplotProportional") {
+    } else if (input$chartTyp == "BarplotProportionalBezirke") {
       
       barplot(
         daten / bevölkerung_bezirke,
+        beside = TRUE,
+        col = farben,
+        xlab = "",
+        ylab = "",
+        cex.names = 0.3,
+        las = 2,
+        horiz = input$chartTyp == "BarplotHorizontal"
+      )
+      # Legende für den Plot
+      legend("right", y = -30, legend = namen, fill = farben)
+    } else if (input$chartTyp == "BarplotProportionalGesamt") {
+      
+      barplot(
+        daten / bevölkerung_insgesamt,
         beside = TRUE,
         col = farben,
         xlab = "",
@@ -233,6 +251,7 @@ server <- function(input, output) {
       legend("right", y = -30, legend = namen, fill = farben)
     } else if (input$chartTyp == "Mosaikplot") {
       mosaicplot(
+        
         t(daten),
         dir = c("h", "v"),
         main = "Mosaikplot",
@@ -243,17 +262,17 @@ server <- function(input, output) {
       )
     } else if (input$chartTyp == "Zeitreihe") {
     
-      ggplot(data=covidData, aes(x=covidData$Meldedatum, y=covidData$AnzahlFall)) + 
+      ggplot(data=covidData, aes(x=covidData$Meldedatum, y=covidData[, input$fallTypen])) + 
         geom_line() + geom_smooth() + 
         labs(x = 'Meldedatum',
-             y = 'Anzahl Covid-19 Fälle') + 
-        ggtitle('Covid-19 Fälle')
+             y = 'Anzahl der Fälle') + 
+        ggtitle('Zeitreihe')
       
       } else if (input$chartTyp == "Trend") {
       
-      ggplot(data=covidData, aes(x=covidData$Meldedatum, y=covidData$AnzahlFall)) + 
-        geom_smooth() + labs(x = 'Meldedatum', y = 'Anzahl Covid-19 Fälle') +
-        ggtitle('Trend der Covid-19 Fälle')
+      ggplot(data=covidData, aes(x=covidData$Meldedatum, y=covidData[, input$fallTypen])) + 
+        geom_smooth() + labs(x = 'Meldedatum', y = 'Anzahl der Fälle') +
+        ggtitle('Trend')
       
      }
   })
