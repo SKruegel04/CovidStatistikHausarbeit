@@ -7,6 +7,7 @@
 #    http://shiny.rstudio.com/
 #
 
+library(clock)
 library(shiny)
 library(ggplot2)
 library(dplyr)
@@ -18,8 +19,6 @@ covidData$Meldedatum <- as.Date(covidData$Meldedatum)
 bevölkerungsData <- read_excel ("SB_A01-05-00_2022h01_BE.xlsx", sheet = "T6", na = "NA")
 bevölkerung_bezirke <- as.numeric(bevölkerungsData$...2[129:140])
 bevölkerung_insgesamt <- as.numeric(bevölkerungsData$...2[141])
-
-
 
 fallTypen <- c(
   "Fälle" = "AnzahlFall",
@@ -40,8 +39,8 @@ datennamen <- c(
 
 meldedaten <- unique(covidData$Meldedatum)
 meldedaten <- meldedaten[order(meldedaten)]
-startDatum <- meldedaten[1]
 endDatum <- meldedaten[length(meldedaten)]
+startDatum <- add_months(endDatum, -3, invalid = "previous")
 bezirke <- unique(covidData$Landkreis)
 geschlechter <- unique(covidData$Geschlecht)
 altersgruppen <- unique(covidData$Altersgruppe)
@@ -63,18 +62,7 @@ ui <- fluidPage(
         ),
         selected = "Bezirke"
       ),
-      selectizeInput(
-        inputId = "fallTypen",
-        label = "Falltypen:",
-        choices = fallTypen,
-        selected = c("AnzahlTodesfall", "AnzahlGenesen"),
-        multiple = TRUE,
-        options = list(
-          plugins = list("remove_button"),
-          minItems = 1
-        )
-      ),
-      
+
       selectInput(
         inputId = "chartTyp",
         label = "Darstellung:",
@@ -88,6 +76,21 @@ ui <- fluidPage(
           "Trend" = "Trend"
         ),
         selected = "Barplot"
+      ),
+      
+      conditionalPanel(
+        condition = "input.chartTyp != 'Zeitreihe' & input.chartTyp != 'Trend'",
+        selectizeInput(
+          inputId = "fallTypen",
+          label = "Falltypen:",
+          choices = fallTypen,
+          selected = c("AnzahlTodesfall", "AnzahlGenesen"),
+          multiple = TRUE,
+          options = list(
+            plugins = list("remove_button"),
+            minItems = 1
+          )
+        ),
       ),
       
       dateInput(
@@ -160,24 +163,24 @@ server <- function(input, output) {
 
   output$ausgabePlot <- renderPlot({
 
-    limitierteDaten = subset(
+    datenAusschnitt = subset(
       covidData,
       Meldedatum > input$zeitraumVon & Meldedatum < input$zeitraumBis
     )
     
-    
-    # Basis-Datensatz basierend auf "Typ" auswahl
-    basisDaten <- limitierteDaten[, input$typ]
+    # Datenfilter auf Basis von gewähltem Typ und spezifischer Eingabe
+    if (input$typ == "Landkreis") {
+      datenAusschnitt <- subset(datenAusschnitt, Landkreis %in% input$bezirk)
+    } else if (input$typ == "Geschlecht") {
+      datenAusschnitt <- subset(datenAusschnitt, Geschlecht %in% input$geschlecht)
+    } else if (input$typ == "Altersgruppe") {
+      datenAusschnitt <- subset(datenAusschnitt, Altersgruppe %in% input$altersgruppe)
+    }
     
     # Wenn keine Falltypen ausgewählt, wähle alle aus
     gewaehlteFallTypen <- input$fallTypen
-    if (length(gewaehlteFallTypen) < 1) {
-      gewaehlteFallTypen <- fallTypen
-    }
-    
-    # Fixiere FallTypen für "Zeitreihe" auf "AnzahlFall"
-    if (input$chartTyp == "Zeitreihe") {
-     # gewaehlteFallTypen <- c("AnzahlFall")
+    if (length(gewaehlteFallTypen) < 1 | input$chartTyp == 'Zeitreihe') {
+      gewaehlteFallTypen <- c("AnzahlTodesfall", "AnzahlGenesen")
     }
    
     # Erstelle Zeilen im Modell für jeden Falltypen
@@ -185,27 +188,23 @@ server <- function(input, output) {
     farben <- c()
     namen <- c()
     for (fallTyp in gewaehlteFallTypen) {
-      neuerDatensatz <- table(basisDaten[limitierteDaten[, fallTyp] != "0"])
+      
+      # Aggregiere jeweils summe von Werten in der Spalte "fallTyp" in den gewählten
+      # fallTypen
+      aggregierteDatenFürFalltyp <- xtabs(
+        datenAusschnitt[, fallTyp] ~ datenAusschnitt[, input$typ],
+        datenAusschnitt
+      )
+
       if (is.null(daten)) {
-        daten <- rbind(neuerDatensatz)
+        daten <- rbind(aggregierteDatenFürFalltyp)
       } else {
-        daten <- rbind(daten, neuerDatensatz)
+        daten <- rbind(daten, aggregierteDatenFürFalltyp)
       }
       farben <- c(farben, datenfarben[fallTyp])
       namen <- c(namen, datennamen[fallTyp])
     }
     row.names(daten) <- namen
-    
-    
-    
-    # Datenfilter auf Basis von Bezirk
-    if (input$typ == "Landkreis") {
-      daten <- subset(daten, select = input$bezirk)
-    } else if (input$typ == "Geschlecht") {
-      daten <- subset(daten, select = input$geschlecht)
-    } else if (input$typ == "Altersgruppe") {
-      daten <- subset(daten, select = input$altersgruppe)
-    }
     
     # Plot auf Basis von chartType eingabe
     if (input$chartTyp %in% c("Barplot", "BarplotHorizontal")) {
@@ -262,18 +261,27 @@ server <- function(input, output) {
       )
     } else if (input$chartTyp == "Zeitreihe") {
     
-      ggplot(data=covidData, aes(x=covidData$Meldedatum, y=covidData[, input$fallTypen])) + 
-        geom_line() + geom_smooth() + 
-        labs(x = 'Meldedatum',
-             y = 'Anzahl der Fälle') + 
+      ggplot(
+        data = datenAusschnitt,
+        aes(x = Meldedatum)
+      ) +
+        geom_line(aes(y = AnzahlTodesfall), col = "red") +
+        geom_line(aes(y = AnzahlGenesen), col = "green") +
+        labs(x = 'Meldedatum', y = 'Anzahl der Todesfälle/Genesen') +
         ggtitle('Zeitreihe')
-      
+    
       } else if (input$chartTyp == "Trend") {
       
-      ggplot(data=covidData, aes(x=covidData$Meldedatum, y=covidData[, input$fallTypen])) + 
-        geom_smooth() + labs(x = 'Meldedatum', y = 'Anzahl der Fälle') +
-        ggtitle('Trend')
-      
+        ggplot(
+          data = datenAusschnitt,
+          aes(x = Meldedatum)
+        ) +
+          geom_point(aes(y = AnzahlTodesfall)) +
+          geom_smooth(aes(y = AnzahlTodesfall), col = "red") +
+          geom_point(aes(y = AnzahlGenesen)) +
+          geom_smooth(aes(y = AnzahlGenesen), col = "green") +
+          labs(x = 'Meldedatum', y = 'Anzahl der Todesfälle/Genesen') +
+          ggtitle('Zeitreihe')
      }
   })
 }
