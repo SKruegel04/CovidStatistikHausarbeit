@@ -17,7 +17,7 @@ covidData$Meldedatum <- as.Date(covidData$Meldedatum)
 
 bevölkerungsData <- read_excel ("SB_A01-05-00_2022h01_BE.xlsx", sheet = "T6", na = "NA")
 bevölkerung_bezirke <- as.numeric(bevölkerungsData$...2[129:140])
-bevölkerung_insgesamt <- as.numeric(bevölkerungsData$...14[141])
+bevölkerung_insgesamt <- as.numeric(bevölkerungsData$...2[141])
 
 
 
