@@ -62,7 +62,7 @@ ui <- fluidPage(
         ),
         selected = "Bezirke"
       ),
-
+      
       selectInput(
         inputId = "chartTyp",
         label = "Darstellung:",
@@ -116,7 +116,7 @@ ui <- fluidPage(
         weekstart = 1,
         language = "de"
       ),
-
+      
       # Wird angezeigt wenn "Bezirke" ausgewählt
       conditionalPanel(
         condition = "input.typ == 'Landkreis'",
@@ -131,7 +131,7 @@ ui <- fluidPage(
       # Wird angezeigt wenn "Geschlechter" ausgewählt
       conditionalPanel(
         condition = "input.typ == 'Geschlecht'",
-
+        
         checkboxGroupInput(
           inputId = "geschlecht",
           label = "Geschlecht:",
@@ -142,7 +142,7 @@ ui <- fluidPage(
       # Wird angezeigt wenn "Altersgruppen" ausgewählt
       conditionalPanel(
         condition = "input.typ == 'Altersgruppe'",
-
+        
         checkboxGroupInput(
           inputId = "altersgruppe",
           label = "Altersgruppe:",
@@ -160,13 +160,15 @@ ui <- fluidPage(
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
-
+  
   output$ausgabePlot <- renderPlot({
-
+    
     datenAusschnitt = subset(
       covidData,
       Meldedatum > input$zeitraumVon & Meldedatum < input$zeitraumBis
     )
+    
+    basisDaten <- datenAusschnitt[, input$typ]
     
     # Datenfilter auf Basis von gewähltem Typ und spezifischer Eingabe
     if (input$typ == "Landkreis") {
@@ -179,23 +181,20 @@ server <- function(input, output) {
     
     # Wenn keine Falltypen ausgewählt, wähle alle aus
     gewaehlteFallTypen <- input$fallTypen
-    if (length(gewaehlteFallTypen) < 1 | input$chartTyp == 'Zeitreihe') {
+    if (length(gewaehlteFallTypen) < 1) {
+      gewaehlteFallTypen <- c("AnzahlTodesfall", "AnzahlGenesen")
+    } else if(input$chartTyp == 'Zeitreihe' | input$chartTyp == 'Trend'){
       gewaehlteFallTypen <- c("AnzahlTodesfall", "AnzahlFall")
     }
-   
+    
     # Erstelle Zeilen im Modell für jeden Falltypen
     daten <- NULL
     farben <- c()
     namen <- c()
+    
+    
     for (fallTyp in gewaehlteFallTypen) {
-      
-      # Aggregiere jeweils summe von Werten in der Spalte "fallTyp" in den gewählten
-      # fallTypen
-      aggregierteDatenFürFalltyp <- xtabs(
-        datenAusschnitt[, fallTyp] ~ datenAusschnitt[, input$typ],
-        datenAusschnitt
-      )
-
+      aggregierteDatenFürFalltyp <- table(basisDaten[datenAusschnitt[, fallTyp] != "0"])
       if (is.null(daten)) {
         daten <- rbind(aggregierteDatenFürFalltyp)
       } else {
@@ -205,6 +204,29 @@ server <- function(input, output) {
       namen <- c(namen, datennamen[fallTyp])
     }
     row.names(daten) <- namen
+    
+    
+    
+    
+    
+    #for (fallTyp in gewaehlteFallTypen) {
+    
+    # Aggregiere jeweils summe von Werten in der Spalte "fallTyp" in den gewählten
+    # fallTypen
+    #aggregierteDatenFürFalltyp <- xtabs(
+    # datenAusschnitt[, fallTyp] ~ datenAusschnitt[, input$typ],
+    #  covidData
+    # )
+    
+    # if (is.null(daten)) {
+    #    daten <- rbind(aggregierteDatenFürFalltyp)
+    # } else {
+    #   daten <- rbind(daten, aggregierteDatenFürFalltyp)
+    # }
+    # farben <- c(farben, datenfarben[fallTyp])
+    #  namen <- c(namen, datennamen[fallTyp])
+    # }
+    #  row.names(daten) <- namen
     
     # Plot auf Basis von chartType eingabe
     if (input$chartTyp %in% c("Barplot", "BarplotHorizontal")) {
@@ -223,20 +245,22 @@ server <- function(input, output) {
     } else if (input$chartTyp == "BarplotProportionalBezirke") {
       
       barplot(
-        daten,
+        #daten,
         daten/bevölkerung_bezirke,
         beside = TRUE,
         col = farben,
         xlab = "",
         ylab = "",
         cex.names = 0.7,
+        las = 2,
         horiz = input$chartTyp == "BarplotHorizontal"
       )
       # Legende für den Plot
       legend("right", y = -30, legend = namen, fill = farben)
     } else if (input$chartTyp == "BarplotProportionalGesamt") {
       
-      barplot(daten,
+      barplot(
+        #daten,
         daten/bevölkerung_insgesamt,
         beside = TRUE,
         col = farben,
@@ -259,7 +283,7 @@ server <- function(input, output) {
         las = 1
       )
     } else if (input$chartTyp == "Zeitreihe") {
-    
+      
       ggplot(
         data = datenAusschnitt,
         aes(x = Meldedatum)
@@ -268,20 +292,20 @@ server <- function(input, output) {
         geom_line(aes(y = AnzahlFall), col = "blue") +
         labs(x = 'Meldedatum', y = 'Anzahl der Todesfälle/Fälle') +
         ggtitle('Zeitreihe der COVID-19 Fällen (blau) und Todesfällen (rot)')
-    
-      } else if (input$chartTyp == "Trend") {
       
-        ggplot(
-          data = datenAusschnitt,
-          aes(x = Meldedatum)
-        ) +
-         # geom_point(aes(y = AnzahlTodesfall)) +
-          geom_smooth(aes(y = AnzahlTodesfall), col = "red") +
-         # geom_point(aes(y = AnzahlFall)) +
-          geom_smooth(aes(y = AnzahlFall), col = "blue") +
-          labs(x = 'Meldedatum', y = "") +
-          ggtitle('Trends bei COVID-19 Fällen (blau) und Todesfällen (rot)')
-     }
+    } else if (input$chartTyp == "Trend") {
+      
+      ggplot(
+        data = datenAusschnitt,
+        aes(x = Meldedatum)
+      ) +
+        # geom_point(aes(y = AnzahlTodesfall)) +
+        geom_smooth(aes(y = AnzahlTodesfall), col = "red") +
+        # geom_point(aes(y = AnzahlFall)) +
+        geom_smooth(aes(y = AnzahlFall), col = "blue") +
+        labs(x = 'Meldedatum', y = "") +
+        ggtitle('Trends bei COVID-19 Fällen (blau) und Todesfällen (rot)')
+    }
   })
 }
 
