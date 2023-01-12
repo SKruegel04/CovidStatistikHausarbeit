@@ -223,21 +223,21 @@ server <- function(input, output) {
     } else if (input$chartTyp == "BarplotProportionalBezirke") {
       
       barplot(
-        daten / bevölkerung_bezirke,
+        daten,
+        daten/bevölkerung_bezirke,
         beside = TRUE,
         col = farben,
         xlab = "",
         ylab = "",
-        cex.names = 0.3,
-        las = 2,
+        cex.names = 0.7,
         horiz = input$chartTyp == "BarplotHorizontal"
       )
       # Legende für den Plot
       legend("right", y = -30, legend = namen, fill = farben)
     } else if (input$chartTyp == "BarplotProportionalGesamt") {
       
-      barplot(
-        daten / bevölkerung_insgesamt,
+      barplot(daten,
+        daten/bevölkerung_insgesamt,
         beside = TRUE,
         col = farben,
         xlab = "",
@@ -281,7 +281,7 @@ server <- function(input, output) {
           geom_point(aes(y = AnzahlGenesen)) +
           geom_smooth(aes(y = AnzahlGenesen), col = "green") +
           labs(x = 'Meldedatum', y = 'Anzahl der Todesfälle/Genesen') +
-          ggtitle('Zeitreihe')
+          ggtitle('Trend')
      }
   })
 }
