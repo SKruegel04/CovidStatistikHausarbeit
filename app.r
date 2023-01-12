@@ -40,7 +40,7 @@ datennamen <- c(
 meldedaten <- unique(covidData$Meldedatum)
 meldedaten <- meldedaten[order(meldedaten)]
 endDatum <- meldedaten[length(meldedaten)]
-startDatum <- add_months(endDatum, -3, invalid = "previous")
+startDatum <- meldedaten[1]
 bezirke <- unique(covidData$Landkreis)
 geschlechter <- unique(covidData$Geschlecht)
 altersgruppen <- unique(covidData$Altersgruppe)
@@ -180,7 +180,7 @@ server <- function(input, output) {
     # Wenn keine Falltypen ausgewählt, wähle alle aus
     gewaehlteFallTypen <- input$fallTypen
     if (length(gewaehlteFallTypen) < 1 | input$chartTyp == 'Zeitreihe') {
-      gewaehlteFallTypen <- c("AnzahlTodesfall", "AnzahlGenesen")
+      gewaehlteFallTypen <- c("AnzahlTodesfall", "AnzahlFall")
     }
    
     # Erstelle Zeilen im Modell für jeden Falltypen
@@ -254,8 +254,7 @@ server <- function(input, output) {
         t(daten),
         dir = c("h", "v"),
         main = "Mosaikplot",
-        color = "skyblue2", 
-        xlab = input$typ,
+        color = "skyblue2",
         cex.names = 1,
         las = 1
       )
@@ -266,9 +265,9 @@ server <- function(input, output) {
         aes(x = Meldedatum)
       ) +
         geom_line(aes(y = AnzahlTodesfall), col = "red") +
-        geom_line(aes(y = AnzahlGenesen), col = "green") +
-        labs(x = 'Meldedatum', y = 'Anzahl der Todesfälle/Genesen') +
-        ggtitle('Zeitreihe')
+        geom_line(aes(y = AnzahlFall), col = "blue") +
+        labs(x = 'Meldedatum', y = 'Anzahl der Todesfälle/Fälle') +
+        ggtitle('Zeitreihe der COVID-19 Fällen (blau) und Todesfällen (rot)')
     
       } else if (input$chartTyp == "Trend") {
       
@@ -276,12 +275,12 @@ server <- function(input, output) {
           data = datenAusschnitt,
           aes(x = Meldedatum)
         ) +
-          geom_point(aes(y = AnzahlTodesfall)) +
+         # geom_point(aes(y = AnzahlTodesfall)) +
           geom_smooth(aes(y = AnzahlTodesfall), col = "red") +
-          geom_point(aes(y = AnzahlGenesen)) +
-          geom_smooth(aes(y = AnzahlGenesen), col = "green") +
-          labs(x = 'Meldedatum', y = 'Anzahl der Todesfälle/Genesen') +
-          ggtitle('Trend')
+         # geom_point(aes(y = AnzahlFall)) +
+          geom_smooth(aes(y = AnzahlFall), col = "blue") +
+          labs(x = 'Meldedatum', y = "") +
+          ggtitle('Trends bei COVID-19 Fällen (blau) und Todesfällen (rot)')
      }
   })
 }
