@@ -175,14 +175,6 @@ server <- function(input, output) {
     
     basisDaten <- datenAusschnitt[, input$typ]
     
-    # Datenfilter auf Basis von gewähltem Typ und spezifischer Eingabe
-    if (input$typ == "Landkreis") {
-      datenAusschnitt <- subset(datenAusschnitt, Landkreis %in% input$bezirk)
-    } else if (input$typ == "Geschlecht") {
-      datenAusschnitt <- subset(datenAusschnitt, Geschlecht %in% input$geschlecht)
-    } else if (input$typ == "Altersgruppe") {
-      datenAusschnitt <- subset(datenAusschnitt, Altersgruppe %in% input$altersgruppe)
-    }
     
     # Wenn keine Falltypen ausgewählt, wähle alle aus
     gewaehlteFallTypen <- input$fallTypen
@@ -213,6 +205,16 @@ server <- function(input, output) {
       namen <- c(namen, datennamen[fallTyp])
     }
     row.names(daten) <- namen
+    
+    # Datenfilter auf Basis von gewähltem Typ und spezifischer Eingabe
+    if (input$typ == "Landkreis") {
+      daten <- subset(daten, select = input$bezirk)
+    } else if (input$typ == "Geschlecht") {
+      daten <- subset(daten, select = input$geschlecht)
+    } else if (input$typ == "Altersgruppe") {
+      daten <- subset(daten, select = input$altersgruppe)
+    }
+    
     
     # Plot auf Basis von chartType eingabe
     if (input$chartTyp %in% c("Barplot", "BarplotHorizontal")) {
