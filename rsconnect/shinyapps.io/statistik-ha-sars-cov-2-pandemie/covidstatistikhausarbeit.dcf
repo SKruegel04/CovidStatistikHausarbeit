@@ -1,0 +1,11 @@
+name: covidstatistikhausarbeit
+title:
+username:
+account: statistik-ha-sars-cov-2-pandemie
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 8041282
+bundleId: 6736404
+url: https://statistik-ha-sars-cov-2-pandemie.shinyapps.io/covidstatistikhausarbeit/
+when: 1673807783.38564
+lastSyncTime: 1673807783.38565
